@@ -1,0 +1,162 @@
+---
+title: "T-tests with data"
+author: "Peace Okoko"
+date: "12/17/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages
+```{r}
+library(tidyverse)
+# tidyverse loads these that we'll use today:
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+#Data Creation
+Data was created based on the means of participants in each of the groups. We chose three categories to look at in the healthcare section. We wanted to see whether there was any difference on the parameters used to measure health between a violence only approach and a violence+education approach. We ended up with three groups for questions regarding health. These are:"Knowledge of modern contraceptive","Has female adult in community" and "Has female adult that meets regularly in the community"
+
+```{r}
+#Data 1
+set.seed(24)
+healthy<-tibble(
+  group=rep(c("Knowledge of modern contraceptive method without  probing","Has female adult in community","Has female adult meets regularly in community"),each=500),
+  intervention<-data.frame( 
+   #Setting the seed to 14  
+    V=c(rnorm(n=500,mean=1618.762,sd=3),
+        rnorm(n=500,mean=1240.566,sd=2),
+        rnorm(n=500,mean=1142.90,sd=5)
+        ),
+    VE=c(rnorm(n=500,mean=1739.206,sd=3),
+         rnorm(n=500,mean=1255.122,sd=2),
+         rnorm(n=500,mean=1105.496,sd=5)
+         ),
+    VEH=c(rnorm(n=500,mean=1703.96,sd=3),
+          rnorm(n=500,mean=1346.544,sd=2),
+          rnorm(n=500,mean=1178.226,sd=5)
+          )
+  )
+)
+   
+healthy
+```
+
+
+#Filtering data
+In order to analyze the data we have to isolate it into groups.
+```{r}
+##Filter the data to just have Knowledge of modern contrace[tive only
+healthyKnow<-healthy%>%filter(group=="Knowledge of modern contraceptive method without  probing")
+healthyFem<-healthy%>%filter(group=="Has female adult in community")
+healthyFemMeet<-healthy%>%filter(group=="Has female adult meets regularly in community")
+```
+
+
+
+##Display the data to make sure it is only the Know section
+```{r}
+healthyKnow
+```
+#Independent t-test
+Run a t-test to see if there is a difference between the means. If the null hypothesis is correct then there should be a 0 difference between the two means
+
+The first parameter we chose is the knowledge of Modern Contraceptives without probing at the end of the study. Having this knowledge means the girls were able to name contraceptive methods without being asked about a specific one.The knowledge of modern contraceptives is important as it is useful in preventing pregnancy.
+```{r}
+##T-Test comparing Violence only group and violence and education group in Knowledge of Modern Contraceptives 
+t.test(healthyKnow$V,healthyKnow$VE )
+```
+
+>The t-test results t(996.45)=-639.42,p<.05. There is a difference in the means between girls that had the violence only intervention and those that had the violence and education intervention. Thus, we must reject the null hypothesis because the test is statistically significant.The results are significant meaning those with the education and violence intervention had greater knowledge of contraceptive methods without probing.
+
+T-Test for having an adult female in the community to talk to
+```{r}
+##T-Test comparing Violence only group and violence and education group in Has female adult in community
+t.test(healthyFem$V,healthyFem$VE )
+qt(c(0.025,0.975),df=998)
+```
+>The t-test results t(998)=-112.89,p<.05.There is a signiticant difference between the means of the violence only group and the violence and education group when it comes to having a female adult to talk to. Thus, we can reject the null hypothesis for this parameter.The t-test is significant because it lower than the cut off of -1.962.
+
+The final parameter we chose on health is how often the girls met with a female adult in the community. This parameter shows consistency and the amount of knowledge on received. One of the things the study wanted to achieve is have the girls regularly meet with an adult to discuss the issues they were going through. 
+
+```{r}
+t.test(healthyFemMeet$V,healthyFemMeet$VE)
+```
+
+>The t-test results t(997.62)=116.43,p<.05. This parameter is the only one where the Violence prevention group had a higher mean than that of the Violence and education group. I think it makes sense for girls that did the violence prevention only to have met with community leaders because violence prevention involved community leaders meeting and setting up ways to help the girls. Being that this was the violence's group only intervention it makes sense that they would meet with communit leaders more regularly.
+
+**REGRESSION TEST
+(just curious)
+Is there in correlation between the Violence only group and the violence and education group? For meeting with female adult regularly?
+```{r}
+healthyFemMeet<-healthy%>%filter(group=="Has female adult meets regularly in community")
+r <- cor(healthyFemMeet$V, healthyFemMeet$VE, 
+    use="complete.obs")
+r
+```
+**CHI-SQUARED TEST
+Is there any relationship between the violence only and violence+Education
+```{r}
+healthyFemMeet<-healthy%>%filter(group=="Has female adult meets regularly in community")
+chisq.test(table(healthyFemMeet$V, healthyFemMeet$VE))
+```
+>The chi-squared test says there is no link between the VE and V group. They were completely independent from each other. χ2(249001)=259500 p=0.2396. I don't know how accurate this information is being that the N= 1000 but the chi-squared test df is greater than 1000.
+
+#Graphs
+Knowledge on contraceptive methods without probing
+```{r}
+
+healthyKnow2 <- healthy%>%filter(group=="Knowledge of modern contraceptive method without  probing") %>% 
+  pivot_longer(cols=c(V,VE,VEH),names_to="treatment",
+  values_to="intervention")%>%group_by(treatment)%>%
+  summarize(meanscore = mean(intervention), 
+            sdscore   = sd(intervention), 
+            sem       = sdscore/sqrt(n()))
+healthyKnow2
+
+ggplot(healthyKnow2,aes(x=treatment,y=meanscore, fill=treatment))+
+  geom_col()+
+  theme_minimal()+
+  geom_errorbar(aes(ymin=meanscore-sem,ymax=meanscore+sem,fill="red"),
+                width=0.3,size=0.02,position = position_dodge(width = .3))+
+  labs(x="Treatment type",y="mean Knowledge", title="treatment type vs. mean Knowledge of modern contraceptive methods")
+                  
+```
+>The highest bar for knowledge is the one with the VE treatment.
+
+
+```{r}
+
+healthyFem3 <- healthy%>%filter(group=="Has female adult in community")
+#%>%pivot_longer(cols = c(VE,V,VEH),names_to = "treatment", values_to = "intervention")%>% group_by(treatment)
+healthyFem3
+ggplot(healthyFem3, 
+       aes(x = V, y = VE)) +
+  geom_point(color="yellow") +
+  geom_abline() +
+  theme_minimal()+
+  labs(x="Violence only",y="Violence +Education", title="Violence vs. Violence Only treatment for having a female adult in the community")
+ 
+```
+
+>There is a weak positive correlation between the Violence group and the Violence and Education group.
+
+Last graph using data from regularly meeting with a female adult
+```{r}
+healthyFemMeet<-healthy%>%filter(group=="Has female adult meets regularly in community")
+ggplot(healthyFemMeet, aes(x=V,y=VE))+
+  geom_violin(aes(fill=group))+
+  geom_jitter()+
+  theme_classic()+
+  labs(x="Violence only",y="Violence +Education", title="Violence vs. Violence Only treatment on Regualr meetings with a Female in the community")
+```
+>The geom_violin values shows that a lot of the values are concentrated in the middle and then there are few values at each extreme end.
